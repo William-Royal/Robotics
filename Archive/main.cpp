@@ -27,32 +27,23 @@ int rdrive;
 
 void maxVal()
 {
- if ((driveY + driveX) > 100)
+ if (abs(driveY) + abs(driveX) > 100)
  {
-   driveY = (driveY / ((driveX + driveY) / 100));
+   driveScale = 100 / (abs(driveY) + abs(driveX));
  }
-}
+  driveY = driveY * driveScale;
+  driveX = driveX * driveScale;
+} 
 
 void SensorControl()
 {
-  if (driveX < 5 && driveX > -5)
+  //Takes sensor input to generate a correction factor to track towards the largest object in sensor view (Can be used in Driver or autonomous)
+  if (Vision6.largestObject.centerX < 190 && Vision6.largestObject.centerX > 110)
   {
-    if(Vision6.largestObject.centerX < 140 && Vision6.largestObject.centerX > 120)
-    {
-      driveX += -5;
-    }
-    else if (Vision6.largestObject.centerX <= 120 && Vision6.largestObject.centerX > 100)
-    {
-      driveX += -10;
-    }
-    else if(Vision6.largestObject.centerX > 160 && Vision6.largestObject.centerX < 180)
-    {
-      driveX += 5;
-    }
-    else if (Vision6.largestObject.centerX >= 180 && Vision6.largestObject.centerX < 200)
-    {
-      driveX += 10; 
-    }
+    visionOffset = Vision6.largestObject.centerX - 150;
+    driveX += visionOffset * 0.5;
+    ldrive += driveX;
+    rdrive -= driveX;
   }
 }
 
@@ -241,57 +232,19 @@ void usercontrol(void)
 {
   while(true)
   {
-    Vision6.takeSnapshot(Vision6__B_BALL);
+    Vision6.takeSnapshot(VISION_BALL);
 
     driveX = Controller1.Axis1.position();
     driveY = Controller1.Axis3.position();
     SensorControl();
-    //maxVal();
+    maxVal();
 
     LeftDrive.spin(forward, driveY + driveX, pct);
     RightDrive.spin(forward, driveY - driveX, pct);
+    FrontLeftDrive.spin(forward, driveY + driveX, pct);
+    FrontRightDrive.spin(forward, driveY - driveX, pct);
 
     chainControl();
-    if(Controller1.ButtonA.pressing() or Controller1.ButtonB.pressing())
-    {
-      if(Controller1.Axis1.position() < 5 && Controller1.Axis1.position() >-5 && Controller1.Axis3.position() < 5 && Controller1.Axis3.position() >-5)
-      {
-        //Wheels lock
-        
-      }
-    }
-/*
-    if(Controller1.ButtonRight.pressing())
-    {
-      while(!Controller1.ButtonLeft.pressing())
-      {
-        Vision6.takeSnapshot(Vision6__B_BALL);
-
-        driveX = Controller1.Axis1.position();
-        driveY = Controller1.Axis3.position();
-
-        SensorControl();
-
-        maxVal();
-        LeftDrive.spin(forward, driveY + driveX, pct);
-        RightDrive.spin(forward, driveY - driveX, pct);
-
-        chainControl();
-      }
-    }
-    else if(Controller1.ButtonLeft.pressing())
-    {
-      while(!Controller1.ButtonRight.pressing())
-      {
-      driveX = Controller1.Axis1.position();
-      driveY = Controller1.Axis3.position();
-
-      maxVal();
-      LeftDrive.spin(forward, driveY + driveX, pct);
-      RightDrive.spin(forward, driveY - driveX, pct);
-      }
-    }
-    */
   }
 }
 
