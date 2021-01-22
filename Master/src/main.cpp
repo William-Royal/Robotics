@@ -1,58 +1,44 @@
 
 #include "vex.h"
 
-// ---- START VEXCODE CONFIGURED DEVICES ----
-// Robot Configuration:
-// [Name]               [Type]        [Port(s)]
-// Controller1          controller                    
-// LeftDrive            motor         1               
-// RightDrive           motor         10              
-// RightIntake          motor         8               
-// LeftIntake           motor         5               
-// RightLift            motor         9               
-// LeftLift             motor         3               
-// Vision6              vision        6               
-// BarMotor             motor         4               
-// ---- END VEXCODE CONFIGURED DEVICES ----
-#include <cmath>
+#include "MoveThread.h"
+#include "Move.h"
+
+#define INVERT_TURNS -1 // 1 if left side, -1 if right
+#define VISION_BALL Vision6__R_BALL // Vision6__R_BALL if red, Vision6__B_BALL if blue
 
 using namespace vex;
 competition Competition;
 
-int AmmonX;
+unsigned int AmmonX = 0x0000;
 int driveX;
 int driveY;
 int ldrive;
 int rdrive;
+int blueSize;
+int redSize;
 
-void maxVal()
+// Centers the detected object
+void SensorControl()
 {
- if ((driveY + driveX) > 100)
+ if(Vision6.largestObject.centerX > 100 && Vision6.largestObject.centerX < 200)
  {
-   driveY = (driveY / ((driveX + driveY) / 100));
+   driveX += (Vision6.largestObject.centerX - 150) / 3;
+   ldrive += driveX;
+   rdrive -= driveX;
  }
 }
 
-void SensorControl()
+// Senses for largest object, color independent
+void multipleColor()
 {
-  if (driveX < 5 && driveX > -5)
+  Vision6.takeSnapshot(Vision6__B_BALL);
+  blueSize = Vision6.largestObject.height * Vision6.largestObject.width;
+  Vision6.takeSnapshot(Vision6__R_BALL);
+  redSize =  Vision6.largestObject.height * Vision6.largestObject.width;
+  if(blueSize > redSize)
   {
-    if(Vision6.largestObject.centerX < 140 && Vision6.largestObject.centerX > 120)
-    {
-      driveX += -5;
-    }
-    else if (Vision6.largestObject.centerX <= 120 && Vision6.largestObject.centerX > 100)
-    {
-      driveX += -10;
-    }
-    else if(Vision6.largestObject.centerX > 160 && Vision6.largestObject.centerX < 180)
-    {
-      driveX += 5;
-    }
-    else if (Vision6.largestObject.centerX >= 180 && Vision6.largestObject.centerX < 200)
-    {
-      driveX += 10; 
-    }
+    Vision6.takeSnapshot(Vision6__B_BALL);
   }
 }
 
@@ -119,101 +105,141 @@ void pre_auton(void)
   //Autonomous Function(s):
 void autonomous(void)
 {
-  
+  Move::moveDeg(180, LeftDrive, FrontLeftDrive, RightDrive, FrontRightDrive);
+  /*
  // dump preload into center goal
-    RightDrive.spin(reverse, 100, pct);
-    LeftDrive.spin(forward, 100, pct);
-wait(140, msec);
-    RightDrive.spin(reverse, 0, pct);
-    LeftDrive.spin(forward, 0, pct);
 
-    LeftIntake.spin(forward, 100, pct);
-    RightIntake.spin(forward, 100, pct);
-    LeftLift.spin(forward, 100, pct);
-    RightLift.spin(forward, 100,pct);
-wait(1000, msec);
-    LeftIntake.spin(forward, 0, pct);
-    RightIntake.spin(forward, 0, pct);
-    LeftLift.spin(forward, 0, pct);
-    RightLift.spin(forward, 0, pct);
+ 
+  // turn right
+  RightDrive.spin(reverse, 100 * INVERT_TURNS, pct);
+  LeftDrive.spin(forward, 100 * INVERT_TURNS, pct);
+  
+  wait(140, msec);
 
-//Turn
-    LeftDrive.spin(forward, 80, pct);
-    RightDrive.spin(reverse, 80, pct);
-wait(350, msec);
-//arc to corner
-    RightDrive.spin(forward, 80, pct);
-    LeftDrive.spin(forward, 45, pct);
-    LeftIntake.spin(forward, 80, pct);
-    RightIntake.spin(forward, 80, pct);
-wait(1950, msec);
-    LeftIntake.spin(forward, 80, pct);
-    RightIntake.spin(forward, 80, pct);
-    LeftLift.spin(forward, 80, pct);
-    RightLift.spin(forward, 80, pct);
-for(int i = 0; i< 50; i++)
-{
-  ldrive = 40;
-  rdrive = 20;
-  Vision6.takeSnapshot(Vision6__B_BALL);
-  if(Vision6.largestObject.centerX > 170)
+  // stop
+  RightDrive.spin(reverse, 0, pct);
+  LeftDrive.spin(forward, 0, pct);
+
+  // start intakes
+  LeftIntake.spin(forward, 100, pct);
+  RightIntake.spin(forward, 100, pct);
+  LeftLift.spin(forward, 100, pct);
+  RightLift.spin(forward, 100,pct);
+
+  wait(1000, msec);
+
+  // stop intakes  
+  LeftIntake.spin(forward, 0, pct);
+  RightIntake.spin(forward, 0, pct);
+  LeftLift.spin(forward, 0, pct);
+  RightLift.spin(forward, 0, pct);
+
+  // turn right 
+  LeftDrive.spin(forward, 80 * INVERT_TURNS, pct);
+  RightDrive.spin(reverse, 80 * INVERT_TURNS, pct);
+
+  wait(400, msec);
+
+  // arc to corner and engage intakes
+  // RightDrive.spin(forward, 80 * INVERT_TURNS, pct);
+  // LeftDrive.spin(forward, 45 * INVERT_TURNS, pct);
+  RightDrive.spin(forward, 62.5 + (17.5 * INVERT_TURNS), pct);
+  LeftDrive.spin(forward, 62.5 - (17.5 * INVERT_TURNS), pct);
+  LeftIntake.spin(forward, 80, pct);
+  RightIntake.spin(forward, 80, pct);
+
+  wait(2100, msec);
+
+  // engage intake and lift
+  LeftIntake.spin(forward, 80, pct);
+  RightIntake.spin(forward, 80, pct);
+  LeftLift.spin(forward, 80, pct);
+  RightLift.spin(forward, 80, pct);
+
+  // vision sensor corrections
+  for(int i = 0; i < 50; i++)
   {
-    ldrive += 15;
-    rdrive -= 15;
+    ldrive = 40;
+    rdrive = 20;
+    Vision6.takeSnapshot(VISION_BALL);
+    if(Vision6.largestObject.centerX > 170)
+    {
+      ldrive += 15;
+      rdrive -= 15;
+    }
+    else if(Vision6.largestObject.centerX < 140)
+    {
+      ldrive -= 15;
+      rdrive += 15;
+    }
+      LeftDrive.spin(forward, ldrive, pct);
+      RightDrive.spin(forward, rdrive, pct);
+      wait(10, msec);
   }
-  else if(Vision6.largestObject.centerX < 140)
-  {
-    ldrive -= 15;
-    rdrive += 15;
-  }
-    LeftDrive.spin(forward, ldrive, pct);
-    RightDrive.spin(forward, rdrive, pct);
-    wait(10, msec);
-}
+
+  // lift and intake stop
+  RightIntake.spin(forward, 0, pct);
+  LeftIntake.spin(forward, 0, pct);
+  LeftLift.spin(forward, 0, pct);
+  RightLift.spin(forward, 0, pct);
+
+  // reverse
+  LeftDrive.spin(reverse, 80, pct);
+  RightDrive.spin(reverse, 80, pct);
+
+  wait(390, msec);
+
+  // turn right
+  LeftDrive.spin(forward, 80 * INVERT_TURNS, pct);
+  RightDrive.spin(reverse, 80 * INVERT_TURNS, pct);
+
+  wait(750, msec);
+
+  // stop
+  LeftDrive.spin(forward, 0, pct);
+  RightDrive.spin(forward, 0, pct);
+
+  wait(100, msec);
+  
+  // reverse
+  RightDrive.spin(reverse, 80, pct);
+  LeftDrive.spin(reverse, 80, pct);
+  
+  wait(700, msec);
+
+  // stop
+  LeftDrive.spin(forward, 0, pct);
+  RightDrive.spin(forward, 0, pct);
+
+  //dump ball into corner goal
+  
+  // engage intake and lift
+  LeftIntake.spin(forward, 80, pct);
+  RightIntake.spin(forward, 80, pct);
+  LeftLift.spin(forward, 80, pct);
+  RightLift.spin(forward, 80, pct);
+
+  wait(3100, msec);
     
+  // stop intake and lift
+  RightIntake.spin(forward, 0, pct);
+  LeftIntake.spin(forward, 0, pct);
+  LeftLift.spin(forward, 0, pct);
+  RightLift.spin(forward, 0, pct);
 
-//retrieve ball?
-    RightIntake.spin(forward, 0, pct);
-    LeftIntake.spin(forward, 0, pct);
-    LeftLift.spin(forward, 0, pct);
-    RightLift.spin(forward, 0, pct);
+  // forward
+  RightDrive.spin(forward, 80, pct);
+  LeftDrive.spin(forward, 80, pct);
 
-//back up and 180 turn
-    LeftDrive.spin(reverse, 80, pct);
-    RightDrive.spin(reverse, 80, pct);
-wait(390, msec);
-    LeftDrive.spin(forward, 80, pct);
-    RightDrive.spin(reverse, 80, pct);
-wait(750, msec);
-    LeftDrive.spin(forward, 0, pct);
-    RightDrive.spin(forward, 0, pct);
-wait(100, msec);
-    RightDrive.spin(reverse, 80, pct);
-    LeftDrive.spin(reverse, 80, pct);
-wait(700, msec);
-    LeftDrive.spin(forward, 0, pct);
-    RightDrive.spin(forward, 0, pct);
+  wait(200, msec);
 
-//dump ball into corner goal
-    LeftIntake.spin(forward, 80, pct);
-    RightIntake.spin(forward, 80, pct);
-    LeftLift.spin(forward, 80, pct);
-    RightLift.spin(forward, 80, pct);
-wait(3100, msec);
-    RightIntake.spin(forward, 0, pct);
-    LeftIntake.spin(forward, 0, pct);
-    LeftLift.spin(forward, 0, pct);
-    RightLift.spin(forward, 0, pct);
-
-//forward slightly
-   RightDrive.spin(forward, 80, pct);
-   LeftDrive.spin(forward, 80, pct);
-wait(200, msec);
-    LeftDrive.spin(forward, 0, pct);
-    RightDrive.spin(forward, 0, pct);
+  // stop
+  LeftDrive.spin(forward, 0, pct);
+  RightDrive.spin(forward, 0, pct);
+  */
 
    /*
- // Vision Example
+  Vision Example
     for(int i = 0; i < 123; i++)
     {
       ldrive = 35;
@@ -234,64 +260,51 @@ wait(200, msec);
       wait(10, msec);
     }
     */
+    
 }
 
 //User Control Function(s):
 void usercontrol(void)
 {
   while(true)
-  {
-    Vision6.takeSnapshot(Vision6__B_BALL);
+  { 
+    if(Controller1.ButtonDown.pressing())
+    {
+      for(int n = 0; n < 1; n++)
+      {
+         LeftDrive.spin(forward, 100, pct);
+         RightDrive.spin(reverse, 100, pct);
+         FrontLeftDrive.spin(forward, 100, pct);
+         FrontRightDrive.spin(reverse, 100, pct);
+         wait(750, msec);
+         LeftDrive.setStopping(brake);
+         RightDrive.setStopping(brake);
+         FrontLeftDrive.setStopping(brake);
+         FrontRightDrive.setStopping(brake);
+         // Move::moveDeg(180, LeftDrive, FrontLeftDrive, RightDrive, FrontRightDrive);
+      }
+    }
+    driveX = 0.60 * Controller1.Axis1.position();  // wow! 60% turn speed
+    driveY = 0.85 * Controller1.Axis3.position();  // eh?  85% move speed
 
-    driveX = Controller1.Axis1.position();
-    driveY = Controller1.Axis3.position();
-    SensorControl();
-    //maxVal();
-
+    //Vision6.takeSnapshot(VISION_BALL);
+    if(Distance14.objectDistance(mm) > 250 or Distance14.objectDistance(mm) == 0)
+    {
+      multipleColor();
+      SensorControl();
+    }
+    
     LeftDrive.spin(forward, driveY + driveX, pct);
     RightDrive.spin(forward, driveY - driveX, pct);
-
+    FrontLeftDrive.spin(forward, driveY + driveX, pct);
+    FrontRightDrive.spin(forward, driveY - driveX, pct);
     chainControl();
-    if(Controller1.ButtonA.pressing() or Controller1.ButtonB.pressing())
-    {
-      if(Controller1.Axis1.position() < 5 && Controller1.Axis1.position() >-5 && Controller1.Axis3.position() < 5 && Controller1.Axis3.position() >-5)
-      {
-        //Wheels lock
-        
-      }
-    }
-/*
-    if(Controller1.ButtonRight.pressing())
-    {
-      while(!Controller1.ButtonLeft.pressing())
-      {
-        Vision6.takeSnapshot(Vision6__B_BALL);
+    Controller1.Screen.clearScreen();
+    Controller1.Screen.print("Distance: ");
+    Controller1.Screen.print(Distance14.objectDistance(mm));
+    Controller1.Screen.newLine();
 
-        driveX = Controller1.Axis1.position();
-        driveY = Controller1.Axis3.position();
-
-        SensorControl();
-
-        maxVal();
-        LeftDrive.spin(forward, driveY + driveX, pct);
-        RightDrive.spin(forward, driveY - driveX, pct);
-
-        chainControl();
-      }
-    }
-    else if(Controller1.ButtonLeft.pressing())
-    {
-      while(!Controller1.ButtonRight.pressing())
-      {
-      driveX = Controller1.Axis1.position();
-      driveY = Controller1.Axis3.position();
-
-      maxVal();
-      LeftDrive.spin(forward, driveY + driveX, pct);
-      RightDrive.spin(forward, driveY - driveX, pct);
-      }
-    }
-    */
+    wait(5, msec);
   }
 }
 
