@@ -7,6 +7,8 @@
 #define INVERT_TURNS -1 // 1 if left side, -1 if right
 #define VISION_BALL Vision6__R_BALL // Vision6__R_BALL if red, Vision6__B_BALL if blue
 
+#define ALL_MOTORS LeftDrive, FrontLeftDrive, RightDrive, FrontRightDrive
+
 using namespace vex;
 competition Competition;
 
@@ -40,6 +42,18 @@ void multipleColor()
   {
     Vision6.takeSnapshot(Vision6__B_BALL);
   }
+}
+
+void setIntakeSpeed(int speed)
+{
+  LeftIntake.spin(forward, speed, pct);
+  RightIntake.spin(forward, speed, pct);
+}
+
+void setLiftSpeed(int speed)
+{
+  LeftLift.spin(forward, speed, pct);
+  RightLift.spin(forward, speed,pct);
 }
 
 void chainControl()
@@ -105,40 +119,87 @@ void pre_auton(void)
   //Autonomous Function(s):
 void autonomous(void)
 {
-  Move::moveDeg(180, LeftDrive, FrontLeftDrive, RightDrive, FrontRightDrive);
+  // 1. Turn
+  Move::moveDeg(45 * INVERT_TURNS, ALL_MOTORS);
+
+  // 2. Deposit preload
+  setIntakeSpeed(100);
+  setLiftSpeed(100);
+
+  wait(1000, msec);
+
+  setIntakeSpeed(0);
+  setLiftSpeed(0);
+
+  // 3. Move away from goal and turn to face other goal
+  Move::moveMM(1300, ALL_MOTORS);
+  Move::moveDeg(90 * INVERT_TURNS, ALL_MOTORS);
+
+  // 4. Approach, correcting using active vision
+  setIntakeSpeed(100);
+
+  float endPosition = LeftDrive.rotation(deg) + 1200;
+  while (LeftDrive.rotation(deg) < endPosition)
+  {
+    // Initial speed
+    ldrive = 80;
+    rdrive = 80;
+
+    // Adjust speed to turn to face target
+    SensorControl();
+
+    // Update motor speeds
+    LeftDrive.spin(fwd, ldrive, pct);
+    FrontLeftDrive.spin(fwd, ldrive, pct);
+    RightDrive.spin(fwd, rdrive, pct);
+    FrontRightDrive.spin(fwd, rdrive, pct);
+  }
+  LeftDrive.spin(fwd, 0, pct);
+  FrontLeftDrive.spin(fwd, 0, pct);
+  RightDrive.spin(fwd, 0, pct);
+  FrontRightDrive.spin(fwd, 0, pct);
+
+  // 5. Reverse from goal, turn 180deg, reverse to goal
+  Move::moveMM(-100, ALL_MOTORS);
+  Move::moveDeg(180, ALL_MOTORS);
+  Move::moveMM(-100, ALL_MOTORS);
+
+  // 6. Eject payload
+  setLiftSpeed(100);
+
   /*
  // dump preload into center goal
 
  
   // turn right
-  RightDrive.spin(reverse, 100 * INVERT_TURNS, pct);
-  LeftDrive.spin(forward, 100 * INVERT_TURNS, pct);
+    RightDrive.spin(reverse, 100 * INVERT_TURNS, pct);
+    LeftDrive.spin(forward, 100 * INVERT_TURNS, pct);
   
-  wait(140, msec);
+    wait(140, msec);
 
   // stop
-  RightDrive.spin(reverse, 0, pct);
-  LeftDrive.spin(forward, 0, pct);
+    RightDrive.spin(reverse, 0, pct);
+    LeftDrive.spin(forward, 0, pct);
 
   // start intakes
-  LeftIntake.spin(forward, 100, pct);
-  RightIntake.spin(forward, 100, pct);
-  LeftLift.spin(forward, 100, pct);
-  RightLift.spin(forward, 100,pct);
+    LeftIntake.spin(forward, 100, pct);
+    RightIntake.spin(forward, 100, pct);
+    LeftLift.spin(forward, 100, pct);
+    RightLift.spin(forward, 100,pct);
 
   wait(1000, msec);
 
   // stop intakes  
-  LeftIntake.spin(forward, 0, pct);
-  RightIntake.spin(forward, 0, pct);
-  LeftLift.spin(forward, 0, pct);
-  RightLift.spin(forward, 0, pct);
+    LeftIntake.spin(forward, 0, pct);
+    RightIntake.spin(forward, 0, pct);
+    LeftLift.spin(forward, 0, pct);
+    RightLift.spin(forward, 0, pct);
 
   // turn right 
-  LeftDrive.spin(forward, 80 * INVERT_TURNS, pct);
-  RightDrive.spin(reverse, 80 * INVERT_TURNS, pct);
+    LeftDrive.spin(forward, 80 * INVERT_TURNS, pct);
+    RightDrive.spin(reverse, 80 * INVERT_TURNS, pct);
 
-  wait(400, msec);
+    wait(400, msec);
 
   // arc to corner and engage intakes
   // RightDrive.spin(forward, 80 * INVERT_TURNS, pct);
